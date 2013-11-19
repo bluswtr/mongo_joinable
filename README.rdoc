@@ -1,0 +1,169 @@
+= mongo_joinable
+
+Now works for both Mongoid and Mongo_Mapper!
+
+== Installation
+
+In console:
+  gem install mongo_joinable
+or in Gemfile:
+  gem 'mongo_joinable'
+
+== Notice
+
+Please read joining documentation first. Since 0.3.2, some apis have been changed. Sorry for the inconvenience.
+
+If you want to remove `join_history` and `joined_history` fields totally from your database after you decide not to use join/joined history feature, do this:
+
+    # in the rails console, taking user as an example:
+    User.all.each { |u| u.unset(:join_history) } # this will remove the join_history field
+
+== Usage
+
+To make model joinable you need to include Mongo::Joinable into your model; You also need to include Mongo::Joiner in your joiner model:
+  class User
+    include Mongoid::Document  #for Mongo_Mapper users, this line of code should be include MongoMapper::Document
+    include Mongo::Joinable::Joined
+    include Mongo::Joinable::Joiner
+    include Mongo::Joinable::History # you have to add this line to enable join/joined history
+  end
+
+  class Group
+    include Mongoid::Document  #for Mongo_Mapper users, this line of code should be include MongoMapper::Document
+    include Mongo::Joinable::Joined
+    include Mongo::Joinable::History # you have to add this line to enable join/joined history
+  end
+
+I've decided to remove authorization because it is quite inefficient to keep this field for every record in the database.
+However, it's possible that I'll add it back as a plugin in the future.
+
+And then you can join and unjoin:
+
+    @group = Group.new
+    @group.save
+
+    current_user.join(@group)
+    current_user.unjoin(@group)
+    current_user.unjoin_all
+
+    current_user.join(*array_of_objects_to_join) # join an array of objects
+    current_user.unjoin(*array_of_objects_to_join) # unjoin
+
+or,
+
+    @group.unjoined(current_user)
+    @group.unjoined_all
+
+It's also possible to pass a block:
+
+    current_user.join(u1, u2, u3, u4...) { |user| user.name == 'Jeremy Lin' }
+    current_user.unjoin(u1, u2, u3, u4...) { |user| user.joinee_of? @kobe_bryant }
+
+    @group.unjoined(u1, u2, u3...) { |user| user.ever_join.include? @some_user }
+
+You can also judge whether a model is a joiner of another model or a model is a joinee of another model:
+
+    current_user.joiner_of?(@group)
+    current_user.joinee_of?(@group)
+
+or whether a model is joining some other model and vice versa:
+
+    current_user.joining?
+    @group.joined?
+
+Moreover, it's easy to get a model's joiner/joinee count:
+
+    current_user.joiners_count
+    current_user.joinees_count
+
+Of course, you can get a list of joiners/joinees:
+    	
+    User.joiners_of(@group)
+    User.joinees_of(@group)
+
+    @group.all_joiners
+    @user.all_joinees
+
+Getting a model's joiners/joinees by type is also possible:
+
+    @group.joiners_by_type("user")
+    @user.joinees_by_type("group")
+
+Dealing with model names:
+
+    @group.joiners_by_type("user")
+    @group.joiners_by_type("User")
+    @group.joiners_by_type("user_post") # both are fine
+    @user.joinees_by_type("GroupPost")
+
+And their count:
+
+    @group.joiners_by_type("user")
+    @group.joiners_count_by_type("user")
+    @user.joinees_by_type("group")
+    @user.joinees_count_by_type("group")
+
+You can also get a model's join/joined history:
+
+    @user.ever_join
+    @group.ever_joined
+
+or to tell if ever join/joined by someone:
+
+    @user.ever_join? @some_group
+    @group.ever_joined? @some_user
+
+Sure you can clear the histories:
+
+    @user.clear_history!
+
+    #or more specific:
+
+    @user.clear_join_history!
+    @group.clear_joined_history!
+
+Another feature is to get a list of models which has the most joiners/joinees:
+
+    User.with_max_joinees
+    User.with_min_joinees
+    User.with_max_joinees_by_type('group')
+    User.with_min_joinees_by_type('group')
+    Group.with_max_joiners
+    Group.with_min_joiners
+    Group.with_max_joiners_by_type('user')
+    Group.with_min_joiners_by_type('user')
+
+Now you can tell if two models have some common joiners/joinees by joining methods:
+
+    @user.common_joinees?(@another_user)
+    @user.common_joiners?(@group)
+
+And see what the common joiners/joinees are:
+
+    @user.common_joinees_with(@another_user)
+    @user.common_joiners_with(@group)
+    
+* Any bug or issue, please send me an email: ustc.flyingfox@gmail.com
+                                                  include Mongo::Joinable::History # you have to add this line to enable join/joined history
+== TODO
+
+* inter-models joinable #FINISHED#
+* divide into two parts: joinable(being joined) and joiner(joining others) #FINISHED#
+* joining history/joined history #FINISHED#
+* most/least joined/joining #FINISHED
+* add authorization to joinable models #FINISHED#
+* common joiners/joinees #FINISHED#
+* add support for mongo_mapper in next version #FINISHED#
+* implement plugins: confirmation, authorization etc.
+
+!!If you have any advice, plese do not hesitate to tell me!!
+
+== Thanks
+
+Thanks the author(s) of acts_as_joinable, you can find this gem here[https://github.com/xpepermint/acts_as_joinable]
+
+Thanks the author(s) of voteable_mongo, you can find this gem here[https://github.com/vinova/voteable_mongo]
+
+== Copyright
+
+Copyright (c) Jie Fan. See LICENSE.txt for further details.    
